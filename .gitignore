@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Compiled source #
 ###################
 *.com
@@ -41,6 +42,8 @@ Thumbs.db
 ##############
 build/
 =======
+=======
+>>>>>>> 2a71b8c8819cef5c752aeefc82650bc1f1183a6a
 # Compiled Object files
 *.slo
 *.lo
@@ -69,4 +72,7 @@ build/
 *.exe
 *.out
 *.app
+<<<<<<< HEAD
+>>>>>>> 2a71b8c8819cef5c752aeefc82650bc1f1183a6a
+=======
 >>>>>>> 2a71b8c8819cef5c752aeefc82650bc1f1183a6a
