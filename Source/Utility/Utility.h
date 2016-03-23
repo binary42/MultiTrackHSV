@@ -26,6 +26,7 @@
 
 #include <fstream>
 #include <cstring>
+#include <pthread.h>
 
 // 3rd party libraries
 #include "../../Libraries/EasyLogging/easylogging++.h"

@@ -1,12 +1,14 @@
 // Inspired by http://opencv-srf.blogspot.com/2010/09/object-detection-using-color-seperation.html
 #include "CMultiTrackerApp.h"
 
-static 	TColorData				_colorCal;
+static TColorData				_colorCal;
 
 CMultiTrackerApp::CMultiTrackerApp( char **argv )
-	: _cap( atoi( argv[1] ) )
-	, _controlWindow( argv[2] )
+	: m_cap( atoi( argv[1] ) )
+	, m_controlWindow( argv[2] )
 	, m_trackedObjects( 0 )
+	, m_isDone( false )
+	, _isNewImage( false )
 {
 	_calibrationData.blue.colorId 	= "blue";
 	_calibrationData.orange.colorId = "orange";
@@ -19,11 +21,21 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 
 CMultiTrackerApp::~CMultiTrackerApp()
 {
+	pthread_mutex_destroy( &m_threadMutex );
 
+	pthread_exit( nullptr );
 }
 
 bool CMultiTrackerApp::Initialize()
 {
+	LOG( INFO ) << "Initializing Thread Attributes and Mutex";
+	// Thread data init
+	pthread_attr_init( &_threadCalData );
+	pthread_attr_setdetachstate( &_threadCalData, PTHREAD_CREATE_JOINABLE );
+
+	pthread_mutex_init( &m_threadMutex, nullptr );
+
+	LOG( INFO ) << "Initializing Blob Parameters";
 
 	// Set blob parameters
 	_params.minThreshold 		= 10;
@@ -41,9 +53,10 @@ bool CMultiTrackerApp::Initialize()
 	_params.filterByInertia 	= true;
 	_params.minInertiaRatio 	= 0.01;
 
+	LOG( INFO ) << "Creating Blod Detector";
+
 	// Init detector with params
 	_detector = cv::SimpleBlobDetector::create( _params );
-	// _detector->detect( image, keyPoints ); // detect blob
 
 	// We use this private class variable to disallow active changes to the calibration.
 	// If we use the _calibrationData structure for calibration and adjustment in real time, we have to retrain
@@ -59,18 +72,20 @@ bool CMultiTrackerApp::Initialize()
 	_colorCal.lowV 	= 0;
 	_colorCal.highV = 255;
 
+	LOG( INFO ) << "Creating Windows, Trackbars, and Buttons";
+
 	// Set control window
-	cv::namedWindow( _controlWindow, CV_WINDOW_AUTOSIZE);
+	cv::namedWindow( m_controlWindow, CV_WINDOW_AUTOSIZE);
 
 	// track bars for HSV tuning
-	cv::createTrackbar( "LowH", _controlWindow, &_colorCal.lowH, 179 );
-	cv::createTrackbar( "HighH", _controlWindow, &_colorCal.highH, 179 );
+	cv::createTrackbar( "LowH", m_controlWindow, &_colorCal.lowH, 179 );
+	cv::createTrackbar( "HighH", m_controlWindow, &_colorCal.highH, 179 );
 
-	cv::createTrackbar( "LowS", _controlWindow, &_colorCal.lowS, 255 );
-	cv::createTrackbar( "HighS", _controlWindow, &_colorCal.highS, 255 );
+	cv::createTrackbar( "LowS", m_controlWindow, &_colorCal.lowS, 255 );
+	cv::createTrackbar( "HighS", m_controlWindow, &_colorCal.highS, 255 );
 
-	cv::createTrackbar( "LowV", _controlWindow, &_colorCal.lowV, 255 );
-	cv::createTrackbar( "HighV", _controlWindow, &_colorCal.highV, 255 );
+	cv::createTrackbar( "LowV", m_controlWindow, &_colorCal.lowV, 255 );
+	cv::createTrackbar( "HighV", m_controlWindow, &_colorCal.highV, 255 );
 
 	// Buttons for color calibration
 	cv::createButton( "Orange", CalibrateHSV, &_calibrationData.orange, CV_PUSH_BUTTON, 0 );
@@ -89,7 +104,7 @@ void CMultiTrackerApp::CalibrateHSV( int stateIn, void *userDataIn )
 {
 	TColorData *calData = (TColorData*)userDataIn;
 
-	LOG( INFO ) << "Calibratiing: " << calData->colorId;
+	LOG( INFO ) << "Calibrating: " << calData->colorId;
 
 	calData->lowH 	= _colorCal.lowH;
 	calData->highH 	= _colorCal.highH;
@@ -104,123 +119,186 @@ void CMultiTrackerApp::CalibrateHSV( int stateIn, void *userDataIn )
 
 void CMultiTrackerApp::Run()
 {
-//	while( true )
-//	{
-//		if( !_cap.read( _origImage ) )
-//		{
-//			LOG( ERROR ) << ">>>> Could not read from video stream: CLOSING <<<<";
-////			break;
-//		}
-		cv::Mat _origImage = cv::imread( "roboops_test_image.png", cv::IMREAD_COLOR );
-
-		cv::cvtColor( _origImage, _imageHSV, cv::COLOR_BGR2HSV );
-
-//		cv::threshold( _imageHSV, _imageThreshold, 127, 255, cv::THRESH_TOZERO );
-
-		cv::inRange( _imageHSV, cv::Scalar( 110, 50, 50 ), cv::Scalar( 179, 255, 255 ), _imageThreshold );
-
-		// Morph open - remove small objects from the foreground
-		cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-		cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-
-		// Morph close - fill small holes in foreground
-		cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-		cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-
-		// Detect the blobs
-		_detector->detect( _imageThreshold, _keyPoints );
-
-		// Draw blobs as red circles
-		// flags ensures the size of the circle corresponds to the size of the blob
-		cv::Mat _imageKeypoints;
-
-		cv::drawKeypoints( _imageThreshold, _keyPoints, _imageKeypoints, cv::Scalar( 0, 255, 0 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
-
-		// Moments ofthe threshold image for tracking
-		cv::Moments imageMoments = cv::moments( _imageThreshold );
-		int posX, posY, lastX, lastY;
-
-		if( imageMoments.m00 > 10000 )
+	LOG( INFO ) << "Launching Color Threads";
+	// Set up threads for each color to detect
+	for( size_t t = 0; t < (size_t)NUM_THREADS; ++t )
+	{
+		// Set color count to track color type per thread
+		switch( (int)t )
 		{
-			posX = imageMoments.m10 / imageMoments.m00;
-			posY = imageMoments.m01 /imageMoments.m00;
-
-			if( lastX >= 0 && lastY >=0 && posX >= 0 && posY >= 0 )
+			case EColor::BLUE:
 			{
-				// Draw a line from previous pose to current pose
-				cv::line( _linesImage, cv::Point( posX, posY )
-							, cv::Point( lastX, lastY ), cv::Scalar( 0, 0, 255 ), 2 );
+				m_colorCount = EColor::BLUE;
+				break;
 			}
-
-			lastX = posX;
-			lastY = posY;
-
-			cv::Scalar color = cv::Scalar( 94, 206, 165 );
-
-			cv::circle( _origImage, cv::Point( posX, posY ), sqrt( imageMoments.m00/3.14 )/10, color, 1.0, 8, 0 );
+			case EColor::GREEN:
+			{
+				m_colorCount = EColor::GREEN;
+				break;
+			}
+			case EColor::ORANGE:
+			{
+				m_colorCount = EColor::ORANGE;
+				break;
+			}
+			case EColor::PURPLE:
+			{
+				m_colorCount = EColor::PURPLE;
+				break;
+			}
+			case EColor::RED:
+			{
+				m_colorCount = EColor::RED;
+				break;
+			}
+			case EColor::YELLOW:
+			{
+				m_colorCount = EColor::YELLOW;
+				break;
+			}
+			default:
+				break;
 		}
 
-//		_linesImage = cv::Mat::zeros( _origImage.size(), CV_8UC3 );
-//		for( std::vector<TTrackObject>::iterator itr = m_trackedObjects.begin(); itr != m_trackedObjects.end(); ++itr)
-//		{
-//
-//
-//			// Convert from BGR to HSV
-//			cv::cvtColor( _origImage, _imageHSV, cv::COLOR_BGR2HSV );
-//
-//			// Threshold the image values
-//			cv::inRange( _imageHSV, cv::Scalar( itr->colorData.lowH, itr->colorData.lowS, itr->colorData.lowV ), cv::Scalar( itr->colorData.highH,
-//																					itr->colorData.highS, itr->colorData.highV ), _imageThreshold );
-//
-//			// Morph open - remove small objects from the foreground
-//			cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-//			cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-//
-//			// Morph close - fill small holes in foreground
-//			cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-//			cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-//
-//			// Moments ofthe threshold image for tracking
-//			cv::Moments imageMoments = cv::moments( _imageThreshold );
-//
-//			m_trackedObjects[0].moments01 = imageMoments.m01;
-//			m_trackedObjects[0].moments10 = imageMoments.m10;
-//			m_trackedObjects[0].momentsArea = imageMoments.m00;
-//
-//			// Noise threshold
-//			if( m_trackedObjects[0].momentsArea > 1000 )
-//			{
-//				m_trackedObjects[0].posX = m_trackedObjects[0].moments10 / m_trackedObjects[0].momentsArea;
-//				m_trackedObjects[0].posY = m_trackedObjects[0].moments01 / m_trackedObjects[0].momentsArea;
-//
-//				if( m_trackedObjects[0].lastX >= 0 && m_trackedObjects[0].lastY >=0 && m_trackedObjects[0].posX >= 0 && m_trackedObjects[0].posY >= 0 )
-//				{
-//					// Draw a line from previous pose to current pose
-//					cv::line( _linesImage, cv::Point( m_trackedObjects[0].posX, m_trackedObjects[0].posY )
-//								, cv::Point( m_trackedObjects[0].lastX, m_trackedObjects[0].lastY ), cv::Scalar( 0, 0, 255 ), 2 );
-//				}
-//
-//				m_trackedObjects[0].lastX = m_trackedObjects[0].posX;
-//				m_trackedObjects[0].lastY = m_trackedObjects[0].posY;
-//
-//				cv::Scalar color = cv::Scalar( 94, 206, 165 );
-//
-//				cv::circle( _origImage, cv::Point( m_trackedObjects[0].posX, m_trackedObjects[0].posY ), sqrt( m_trackedObjects[0].momentsArea/3.14 )/10, color, 0.5, 8, 0 );
-//			}
-//		}
-		// Display the images
-		cv::imshow( _controlWindow, _imageThreshold );
-
-		// Display the combined image
-		_origImage = _origImage + _linesImage;
-
-		cv::imshow( "Original-Image", _origImage );
-		cv::imshow( "Blob-Image", _imageKeypoints );
-
-		if( cv::waitKey( 0 ) == 27 )
+		int ret = pthread_create( &_colorThreads[t], &_threadCalData, RunColorThreads, (void*)this );
+		if( ret )
 		{
-			LOG( INFO ) << ">>>> Exiting <<<<";
-//			break;
+			LOG( ERROR ) << ">>>> Error: Thread create for thread: " << t << " Falied: " << ret << " <<<<";
 		}
+	}
+
+//	LOG( INFO ) << "Launching Camera Thread";
+//
+//	int ret = pthread_create( &_cameraThread, &_threadCalData, RunCamThread, (void*)this );
+//	if( ret )
+//	{
+//		LOG( ERROR ) << ">>>> Error: Thread create for Camera thread Falied: " << ret << " <<<<";
 //	}
+
+
+
+
+	// pthread status and join wait
+	void *status;
+
+	pthread_attr_destroy( &_threadCalData );
+
+	for( size_t t; t < (size_t)NUM_THREADS; ++t)
+	{
+		int ret = pthread_join( _colorThreads[t], &status );
+
+		if( ret )
+		{
+			LOG( ERROR ) << "Error Join Thread: " << ret;
+		}
+		LOG( INFO ) << "Completed join with thread: " << (long)status;
+	}
+}
+
+void *CMultiTrackerApp::RunColorThreads( void *interfaceIn )
+{
+	CMultiTrackerApp *app = (CMultiTrackerApp*)interfaceIn;
+
+	pthread_mutex_lock( &app->m_threadMutex );
+
+	EColor threadColor = app->m_colorCount;
+
+	LOG( INFO ) << "Running Thread for Color: " << threadColor;
+
+	while( !app->m_isDone )
+	{
+		if( !app->m_origImage.empty() && app->HasNewImage() )
+		{
+			pthread_mutex_lock( &app->m_threadMutex );
+
+			cv::cvtColor( app->m_origImage, app->_imageHSV, cv::COLOR_BGR2HSV );
+
+			cv::inRange( app->_imageHSV, cv::Scalar( 110, 50, 50 ), cv::Scalar( 179, 255, 255 ), app->_imageThreshold );
+
+			// Morph open - remove small objects from the foreground
+			cv::erode( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+			cv::dilate( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+
+			// Morph close - fill small holes in foreground
+			cv::dilate( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+			cv::erode( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+
+			// Detect the blobs
+			app->_detector->detect( app->_imageThreshold, app->_keyPoints );
+
+			// Draw blobs with circles
+			// flags ensures the size of the circle corresponds to the size of the blob
+			cv::drawKeypoints( app->_imageThreshold,app->_keyPoints,app->m_imageKeypoints, cv::Scalar( 0, 255, 0 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+
+			// Moments ofthe threshold image for tracking
+			cv::Moments imageMoments = cv::moments( app->_imageThreshold );
+
+
+
+			int posX, posY, lastX, lastY;
+			// Filtering noise again with # .m00 area
+			if( imageMoments.m00 > 10000 )
+			{
+				posX = imageMoments.m10 / imageMoments.m00;
+				posY = imageMoments.m01 /imageMoments.m00;
+
+				lastX = posX;
+				lastY = posY;
+
+				cv::Scalar color = cv::Scalar( 94, 206, 165 );
+
+				cv::circle( app->m_origImage, cv::Point( posX, posY ), sqrt( imageMoments.m00/3.14 )/10, color, 1.0, 8, 0 );
+			}
+		}
+
+		// Unlock image data
+		pthread_mutex_unlock( &app->m_threadMutex );
+	}
+
+	return nullptr;
+}
+
+void *CMultiTrackerApp::RunCamThread( void *interfaceIn )
+{
+	CMultiTrackerApp *app = (CMultiTrackerApp*)interfaceIn;
+
+	while( !app->m_isDone )
+	{
+		pthread_mutex_lock( &app->m_threadMutex );
+
+		if( !app->m_cap.read( app->m_origImage ) )
+		{
+			LOG( ERROR ) << ">>>> Could not read from video stream: CLOSING <<<<";
+			break;
+		}
+		if( !app->m_origImage.empty() && app->HasNewImage() )
+		{
+			// Lock image data for display
+			pthread_mutex_lock( &app->m_threadMutex );
+
+			// Display the images
+			cv::imshow( app->m_controlWindow, app->_imageThreshold );
+
+			cv::imshow( "Original-Image", app->m_origImage );
+
+			cv::imshow( "Blob-Image", app->m_imageKeypoints );
+
+			// Unlock image data
+			pthread_mutex_unlock( &app->m_threadMutex );
+
+			if( cv::waitKey( 10 ) == 27 )
+			{
+				LOG( INFO ) << ">>>> Exiting <<<<";
+				break;
+			}
+		}
+		pthread_mutex_unlock( &app->m_threadMutex );
+	}
+
+	return nullptr;
+}
+
+bool CMultiTrackerApp::HasNewImage()
+{
+	return _isNewImage;
 }

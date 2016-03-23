@@ -28,6 +28,16 @@ struct TCalibration{
 	TColorData 		red;
 };
 
+enum EColor
+{
+	ORANGE,
+	BLUE,
+	PURPLE,
+	YELLOW,
+	GREEN,
+	RED
+};
+
 class CMultiTrackerApp
 {
 public:
@@ -56,20 +66,31 @@ public:
 	} m_object;
 
 	cv::SimpleBlobDetector::Params	_params;
-
 	std::vector<TTrackObject>		m_trackedObjects;
+
+	const int 						NUM_THREADS = 6;
+	EColor 							m_colorCount;
+
+	pthread_mutex_t					m_threadMutex;
+	bool							m_isDone;
+
+	cv::VideoCapture				m_cap;
+	cv::Mat							m_origImage;
+
+	cv::Mat 						m_imageKeypoints;
+	std::string						m_controlWindow;
 
 	// Methods
 	bool Initialize();
 	static void CalibrateHSV( int stateIn, void *userDataIn );
+
 	void Run();
+	bool HasNewImage();
 
 private:
 	// Attributes
-	cv::VideoCapture					_cap;
-	std::string							_controlWindow;
 
-	cv::Mat								_origImage;
+
 	cv::Mat								_imageHSV;
 
 	cv::Mat								_imageThreshold;
@@ -80,5 +101,15 @@ private:
 
 	std::vector<cv::KeyPoint>			_keyPoints;
 
+	pthread_t							_colorThreads[];
+	pthread_attr_t						_threadCalData;
+
+	pthread_t							_cameraThread;
+
+
+	bool 								_isNewImage;
+
 	// Methods
+	static void *RunColorThreads( void *interfaceIn );
+	static void *RunCamThread( void *interfaceIn );
 };
