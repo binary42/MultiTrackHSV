@@ -55,7 +55,7 @@ public:
 		int 					lastY;
 	} m_object;
 
-	cv::SimpleBlobDetector::Param	_params;
+	cv::SimpleBlobDetector::Params	_params;
 
 	std::vector<TTrackObject>		m_trackedObjects;
 

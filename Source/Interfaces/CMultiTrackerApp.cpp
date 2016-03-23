@@ -27,7 +27,7 @@ bool CMultiTrackerApp::Initialize()
 
 	// Set blob parameters
 	_params.minThreshold = 10;
-	_params.maxthreshold = 200;
+	_params.maxThreshold = 200;
 
 	_params.filterByArea = true;
 	_params.minArea = 1500;
@@ -42,7 +42,7 @@ bool CMultiTrackerApp::Initialize()
 	_params.minInertiaRatio = 0.01;
 
 	// Init detector with params
-	_detector = SimpleBlobDetector::create( _params );
+	_detector = cv::SimpleBlobDetector::create( _params );
 	// _detector->detect( image, keyPoints ); // detect blob
 
 	// We use this private class variable to disallow active changes to the calibration.
@@ -107,21 +107,21 @@ void CMultiTrackerApp::Run()
 //	m_objec
 //	m_trackedObjects.push_back( );
 
-	while( true )
-	{
+//	while( true )
+//	{
 		if( !_cap.read( _origImage ) )
 		{
 			LOG( ERROR ) << ">>>> Could not read from video stream: CLOSING <<<<";
-			break;
+//			break;
 		}
-
+		cv::Mat im = cv::imread( "blob.jpg", cv::IMREAD_GRAYSCALE );
 		// Detect the blobs
-		_detector->detect( _origImage, keypoints );
+		_detector->detect( im, _keyPoints );
 
 		// Draw blobs as red circles
 		// flags ensures the size of the circle corresponds to the size of the blob
 		cv::Mat _imageKeypoints;
-		cv::drawKeypoints( _origImage, keyPoints, _imageKeypoints, cv::Scalar( 0, 0, 255 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+		cv::drawKeypoints( im, _keyPoints, _imageKeypoints, cv::Scalar( 0, 0, 255 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
 
 //		_linesImage = cv::Mat::zeros( _origImage.size(), CV_8UC3 );
 //		for( std::vector<TTrackObject>::iterator itr = m_trackedObjects.begin(); itr != m_trackedObjects.end(); ++itr)
@@ -172,18 +172,18 @@ void CMultiTrackerApp::Run()
 //			}
 //		}
 		// Display the images
-		cv::imshow( _controlWindow, _imageThreshold );
+//		cv::imshow( _controlWindow, _imageThreshold );
 
 		// Display the combined image
 //		_origImage = _origImage + _linesImage;
 
-		cv::imshow( "Original-Image", _origImage );
+//		cv::imshow( "Original-Image", _origImage );
 		cv::imshow( "Blob-Image", _imageKeypoints );
 
-		if( cv::waitKey( 3 ) == 27 )
+		if( cv::waitKey( 0 ) == 27 )
 		{
 			LOG( INFO ) << ">>>> Exiting <<<<";
-			break;
+//			break;
 		}
-	}
+//	}
 }
