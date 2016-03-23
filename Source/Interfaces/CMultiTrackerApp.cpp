@@ -117,9 +117,15 @@ void CMultiTrackerApp::Run()
 
 
 
-		cv::threshold( _imageHSV, _imageThreshold, 115, 255, cv::THRESH_BINARY );
+		cv::threshold( _imageHSV, _imageThreshold, 127, 255, cv::THRESH_TOZERO );
 
+		// Morph open - remove small objects from the foreground
+		cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+		cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
 
+		// Morph close - fill small holes in foreground
+		cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+		cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
 
 		// Detect the blobs
 		_detector->detect( _imageThreshold, _keyPoints );
@@ -127,6 +133,7 @@ void CMultiTrackerApp::Run()
 		// Draw blobs as red circles
 		// flags ensures the size of the circle corresponds to the size of the blob
 		cv::Mat _imageKeypoints;
+
 		cv::drawKeypoints( _imageThreshold, _keyPoints, _imageKeypoints, cv::Scalar( 0, 0, 255 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
 
 //		_linesImage = cv::Mat::zeros( _origImage.size(), CV_8UC3 );
