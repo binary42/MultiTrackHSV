@@ -115,9 +115,9 @@ void CMultiTrackerApp::Run()
 
 		cv::cvtColor( im, _imageHSV, cv::COLOR_BGR2HSV );
 
+//		cv::threshold( _imageHSV, _imageThreshold, 127, 255, cv::THRESH_TOZERO );
 
-
-		cv::threshold( _imageHSV, _imageThreshold, 127, 255, cv::THRESH_TOZERO );
+		cv::inRange( _imageHSV, cv::Scalar( 70, 87, 42 ), cv::Scalar( 179, 255, 255 ), _imageThreshold );
 
 		// Morph open - remove small objects from the foreground
 		cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
