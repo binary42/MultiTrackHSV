@@ -14,6 +14,7 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 	_calibrationData.yellow.colorId = "yellow";
 	_calibrationData.green.colorId 	= "green";
 	_calibrationData.red.colorId 	= "red";
+
 }
 
 CMultiTrackerApp::~CMultiTrackerApp()
@@ -23,6 +24,26 @@ CMultiTrackerApp::~CMultiTrackerApp()
 
 bool CMultiTrackerApp::Initialize()
 {
+
+	// Set blob parameters
+	_params.minThreshold = 10;
+	_params.maxthreshold = 200;
+
+	_params.filterByArea = true;
+	_params.minArea = 1500;
+
+	_params.filterByCircularity = true;
+	_params.minCircularity = 0.1;
+
+	_params.filterByConvexity = true;
+	_params.minConvexity = 0.87;
+
+	_params.filterByInertia = true;
+	_params.minInertiaRatio = 0.01;
+
+	// Init detector with params
+	_detector = SimpleBlobDetector::create( _params );
+	// _detector->detect( image, keyPoints ); // detect blob
 
 	// We use this private class variable to disallow active changes to the calibration.
 	// If we use the _calibrationData structure for calibration and adjustment in real time, we have to retrain
@@ -83,8 +104,8 @@ void CMultiTrackerApp::CalibrateHSV( int stateIn, void *userDataIn )
 
 void CMultiTrackerApp::Run()
 {
-	m_objec
-	m_trackedObjects.push_back( );
+//	m_objec
+//	m_trackedObjects.push_back( );
 
 	while( true )
 	{
@@ -94,54 +115,62 @@ void CMultiTrackerApp::Run()
 			break;
 		}
 
+		// Detect the blobs
+		_detector->detect( _origImage, keypoints );
+
+		// Draw blobs as red circles
+		// flags ensures the size of the circle corresponds to the size of the blob
+		cv::Mat _imageKeypoints;
+		cv::drawKeypoints( _origImage, keyPoints, _imageKeypoints, cv::Scalar( 0, 0, 255 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+
 //		_linesImage = cv::Mat::zeros( _origImage.size(), CV_8UC3 );
-		for( std::vector<TTrackObject>::iterator itr = m_trackedObjects.begin(); itr != m_trackedObjects.end(); ++itr)
-		{
-
-
-			// Convert from BGR to HSV
-			cv::cvtColor( _origImage, _imageHSV, cv::COLOR_BGR2HSV );
-
-			// Threshold the image values
-			cv::inRange( _imageHSV, cv::Scalar( itr->colorData.lowH, itr->colorData.lowS, itr->colorData.lowV ), cv::Scalar( itr->colorData.highH,
-																					itr->colorData.highS, itr->colorData.highV ), _imageThreshold );
-
-			// Morph open - remove small objects from the foreground
-			cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-			cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-
-			// Morph close - fill small holes in foreground
-			cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-			cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-
-			// Moments ofthe threshold image for tracking
-			cv::Moments imageMoments = cv::moments( _imageThreshold );
-
-			m_trackedObjects[0].moments01 = imageMoments.m01;
-			m_trackedObjects[0].moments10 = imageMoments.m10;
-			m_trackedObjects[0].momentsArea = imageMoments.m00;
-
-			// Noise threshold
-			if( m_trackedObjects[0].momentsArea > 1000 )
-			{
-				m_trackedObjects[0].posX = m_trackedObjects[0].moments10 / m_trackedObjects[0].momentsArea;
-				m_trackedObjects[0].posY = m_trackedObjects[0].moments01 / m_trackedObjects[0].momentsArea;
-
-				if( m_trackedObjects[0].lastX >= 0 && m_trackedObjects[0].lastY >=0 && m_trackedObjects[0].posX >= 0 && m_trackedObjects[0].posY >= 0 )
-				{
-					// Draw a line from previous pose to current pose
-					cv::line( _linesImage, cv::Point( m_trackedObjects[0].posX, m_trackedObjects[0].posY )
-								, cv::Point( m_trackedObjects[0].lastX, m_trackedObjects[0].lastY ), cv::Scalar( 0, 0, 255 ), 2 );
-				}
-
-				m_trackedObjects[0].lastX = m_trackedObjects[0].posX;
-				m_trackedObjects[0].lastY = m_trackedObjects[0].posY;
-
-				cv::Scalar color = cv::Scalar( 94, 206, 165 );
-
-				cv::circle( _origImage, cv::Point( m_trackedObjects[0].posX, m_trackedObjects[0].posY ), sqrt( m_trackedObjects[0].momentsArea/3.14 )/10, color, 0.5, 8, 0 );
-			}
-		}
+//		for( std::vector<TTrackObject>::iterator itr = m_trackedObjects.begin(); itr != m_trackedObjects.end(); ++itr)
+//		{
+//
+//
+//			// Convert from BGR to HSV
+//			cv::cvtColor( _origImage, _imageHSV, cv::COLOR_BGR2HSV );
+//
+//			// Threshold the image values
+//			cv::inRange( _imageHSV, cv::Scalar( itr->colorData.lowH, itr->colorData.lowS, itr->colorData.lowV ), cv::Scalar( itr->colorData.highH,
+//																					itr->colorData.highS, itr->colorData.highV ), _imageThreshold );
+//
+//			// Morph open - remove small objects from the foreground
+//			cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+//			cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+//
+//			// Morph close - fill small holes in foreground
+//			cv::dilate( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+//			cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+//
+//			// Moments ofthe threshold image for tracking
+//			cv::Moments imageMoments = cv::moments( _imageThreshold );
+//
+//			m_trackedObjects[0].moments01 = imageMoments.m01;
+//			m_trackedObjects[0].moments10 = imageMoments.m10;
+//			m_trackedObjects[0].momentsArea = imageMoments.m00;
+//
+//			// Noise threshold
+//			if( m_trackedObjects[0].momentsArea > 1000 )
+//			{
+//				m_trackedObjects[0].posX = m_trackedObjects[0].moments10 / m_trackedObjects[0].momentsArea;
+//				m_trackedObjects[0].posY = m_trackedObjects[0].moments01 / m_trackedObjects[0].momentsArea;
+//
+//				if( m_trackedObjects[0].lastX >= 0 && m_trackedObjects[0].lastY >=0 && m_trackedObjects[0].posX >= 0 && m_trackedObjects[0].posY >= 0 )
+//				{
+//					// Draw a line from previous pose to current pose
+//					cv::line( _linesImage, cv::Point( m_trackedObjects[0].posX, m_trackedObjects[0].posY )
+//								, cv::Point( m_trackedObjects[0].lastX, m_trackedObjects[0].lastY ), cv::Scalar( 0, 0, 255 ), 2 );
+//				}
+//
+//				m_trackedObjects[0].lastX = m_trackedObjects[0].posX;
+//				m_trackedObjects[0].lastY = m_trackedObjects[0].posY;
+//
+//				cv::Scalar color = cv::Scalar( 94, 206, 165 );
+//
+//				cv::circle( _origImage, cv::Point( m_trackedObjects[0].posX, m_trackedObjects[0].posY ), sqrt( m_trackedObjects[0].momentsArea/3.14 )/10, color, 0.5, 8, 0 );
+//			}
+//		}
 		// Display the images
 		cv::imshow( _controlWindow, _imageThreshold );
 
@@ -149,6 +178,7 @@ void CMultiTrackerApp::Run()
 //		_origImage = _origImage + _linesImage;
 
 		cv::imshow( "Original-Image", _origImage );
+		cv::imshow( "Blob-Image", _imageKeypoints );
 
 		if( cv::waitKey( 3 ) == 27 )
 		{

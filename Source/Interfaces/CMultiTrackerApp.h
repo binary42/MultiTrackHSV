@@ -55,8 +55,9 @@ public:
 		int 					lastY;
 	} m_object;
 
+	cv::SimpleBlobDetector::Param	_params;
 
-	std::vector<TTrackObject>	m_trackedObjects;
+	std::vector<TTrackObject>		m_trackedObjects;
 
 	// Methods
 	bool Initialize();
@@ -74,7 +75,10 @@ private:
 	cv::Mat						_imageThreshold;
 	cv::Mat						_linesImage;
 
-	TCalibration				_calibrationData;
+	TCalibration						_calibrationData;
+	cv::Ptr<cv::SimpleBlobDetector> 	_detector;
+
+	std::vector<cv::KeyPoint>			_keyPoints;
 
 	// Methods
 };
