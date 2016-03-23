@@ -106,18 +106,18 @@ void CMultiTrackerApp::Run()
 {
 //	while( true )
 //	{
-		if( !_cap.read( _origImage ) )
-		{
-			LOG( ERROR ) << ">>>> Could not read from video stream: CLOSING <<<<";
-//			break;
-		}
-		cv::Mat im = cv::imread( "roboops_test_image.png", cv::IMREAD_COLOR );
+//		if( !_cap.read( _origImage ) )
+//		{
+//			LOG( ERROR ) << ">>>> Could not read from video stream: CLOSING <<<<";
+////			break;
+//		}
+		cv::Mat _origImage = cv::imread( "roboops_test_image.png", cv::IMREAD_COLOR );
 
-		cv::cvtColor( im, _imageHSV, cv::COLOR_BGR2HSV );
+		cv::cvtColor( _origImage, _imageHSV, cv::COLOR_BGR2HSV );
 
 //		cv::threshold( _imageHSV, _imageThreshold, 127, 255, cv::THRESH_TOZERO );
 
-		cv::inRange( _imageHSV, cv::Scalar( 70, 87, 42 ), cv::Scalar( 179, 255, 255 ), _imageThreshold );
+		cv::inRange( _imageHSV, cv::Scalar( 110, 50, 50 ), cv::Scalar( 179, 255, 255 ), _imageThreshold );
 
 		// Morph open - remove small objects from the foreground
 		cv::erode( _imageThreshold, _imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
@@ -134,7 +134,31 @@ void CMultiTrackerApp::Run()
 		// flags ensures the size of the circle corresponds to the size of the blob
 		cv::Mat _imageKeypoints;
 
-		cv::drawKeypoints( _imageThreshold, _keyPoints, _imageKeypoints, cv::Scalar( 0, 0, 255 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+		cv::drawKeypoints( _imageThreshold, _keyPoints, _imageKeypoints, cv::Scalar( 0, 255, 0 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+
+		// Moments ofthe threshold image for tracking
+		cv::Moments imageMoments = cv::moments( _imageThreshold );
+		int posX, posY, lastX, lastY;
+
+		if( imageMoments.m00 > 10000 )
+		{
+			posX = imageMoments.m10 / imageMoments.m00;
+			posY = imageMoments.m01 /imageMoments.m00;
+
+			if( lastX >= 0 && lastY >=0 && posX >= 0 && posY >= 0 )
+			{
+				// Draw a line from previous pose to current pose
+				cv::line( _linesImage, cv::Point( posX, posY )
+							, cv::Point( lastX, lastY ), cv::Scalar( 0, 0, 255 ), 2 );
+			}
+
+			lastX = posX;
+			lastY = posY;
+
+			cv::Scalar color = cv::Scalar( 94, 206, 165 );
+
+			cv::circle( _origImage, cv::Point( posX, posY ), sqrt( imageMoments.m00/3.14 )/10, color, 1.0, 8, 0 );
+		}
 
 //		_linesImage = cv::Mat::zeros( _origImage.size(), CV_8UC3 );
 //		for( std::vector<TTrackObject>::iterator itr = m_trackedObjects.begin(); itr != m_trackedObjects.end(); ++itr)
@@ -185,12 +209,12 @@ void CMultiTrackerApp::Run()
 //			}
 //		}
 		// Display the images
-//		cv::imshow( _controlWindow, _imageThreshold );
+		cv::imshow( _controlWindow, _imageThreshold );
 
 		// Display the combined image
-//		_origImage = _origImage + _linesImage;
+		_origImage = _origImage + _linesImage;
 
-//		cv::imshow( "Original-Image", _origImage );
+		cv::imshow( "Original-Image", _origImage );
 		cv::imshow( "Blob-Image", _imageKeypoints );
 
 		if( cv::waitKey( 0 ) == 27 )
