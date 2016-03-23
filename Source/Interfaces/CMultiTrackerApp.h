@@ -66,14 +66,14 @@ public:
 
 private:
 	// Attributes
-	cv::VideoCapture			_cap;
-	std::string					_controlWindow;
+	cv::VideoCapture					_cap;
+	std::string							_controlWindow;
 
-	cv::Mat						_origImage;
-	cv::Mat						_imageHSV;
+	cv::Mat								_origImage;
+	cv::Mat								_imageHSV;
 
-	cv::Mat						_imageThreshold;
-	cv::Mat						_linesImage;
+	cv::Mat								_imageThreshold;
+	cv::Mat								_linesImage;
 
 	TCalibration						_calibrationData;
 	cv::Ptr<cv::SimpleBlobDetector> 	_detector;

@@ -26,20 +26,20 @@ bool CMultiTrackerApp::Initialize()
 {
 
 	// Set blob parameters
-	_params.minThreshold = 10;
-	_params.maxThreshold = 200;
+	_params.minThreshold 		= 10;
+	_params.maxThreshold 		= 200;
 
-	_params.filterByArea = true;
-	_params.minArea = 1500;
+	_params.filterByArea 		= true;
+	_params.minArea 			= 1500;
 
 	_params.filterByCircularity = true;
-	_params.minCircularity = 0.1;
+	_params.minCircularity 		= 0.1;
 
-	_params.filterByConvexity = true;
-	_params.minConvexity = 0.87;
+	_params.filterByConvexity 	= true;
+	_params.minConvexity 		= 0.87;
 
-	_params.filterByInertia = true;
-	_params.minInertiaRatio = 0.01;
+	_params.filterByInertia 	= true;
+	_params.minInertiaRatio 	= 0.01;
 
 	// Init detector with params
 	_detector = cv::SimpleBlobDetector::create( _params );
@@ -50,13 +50,13 @@ bool CMultiTrackerApp::Initialize()
 	// at this time.
 	_colorCal.colorId = "init";
 
-	_colorCal.lowH = 0;
+	_colorCal.lowH 	= 0;
 	_colorCal.highH = 179;
 
-	_colorCal.lowS = 0;
+	_colorCal.lowS 	= 0;
 	_colorCal.highS = 255;
 
-	_colorCal.lowV = 0;
+	_colorCal.lowV 	= 0;
 	_colorCal.highV = 255;
 
 	// Set control window
@@ -91,22 +91,19 @@ void CMultiTrackerApp::CalibrateHSV( int stateIn, void *userDataIn )
 
 	LOG( INFO ) << "Calibratiing: " << calData->colorId;
 
-	calData->lowH = _colorCal.lowH;
-	calData->highH = _colorCal.highH;
+	calData->lowH 	= _colorCal.lowH;
+	calData->highH 	= _colorCal.highH;
 
-	calData->lowS = _colorCal.lowS;
-	calData->highS = _colorCal.highS;
+	calData->lowS 	= _colorCal.lowS;
+	calData->highS 	= _colorCal.highS;
 
-	calData->lowV = _colorCal.lowV;
-	calData->highV = _colorCal.highV;
+	calData->lowV 	= _colorCal.lowV;
+	calData->highV	= _colorCal.highV;
 
 }
 
 void CMultiTrackerApp::Run()
 {
-//	m_objec
-//	m_trackedObjects.push_back( );
-
 //	while( true )
 //	{
 		if( !_cap.read( _origImage ) )
@@ -114,14 +111,23 @@ void CMultiTrackerApp::Run()
 			LOG( ERROR ) << ">>>> Could not read from video stream: CLOSING <<<<";
 //			break;
 		}
-		cv::Mat im = cv::imread( "blob.jpg", cv::IMREAD_GRAYSCALE );
+		cv::Mat im = cv::imread( "roboops_test_image.png", cv::IMREAD_COLOR );
+
+		cv::cvtColor( im, _imageHSV, cv::COLOR_BGR2HSV );
+
+
+
+		cv::threshold( _imageHSV, _imageThreshold, 115, 255, cv::THRESH_BINARY );
+
+
+
 		// Detect the blobs
-		_detector->detect( im, _keyPoints );
+		_detector->detect( _imageThreshold, _keyPoints );
 
 		// Draw blobs as red circles
 		// flags ensures the size of the circle corresponds to the size of the blob
 		cv::Mat _imageKeypoints;
-		cv::drawKeypoints( im, _keyPoints, _imageKeypoints, cv::Scalar( 0, 0, 255 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+		cv::drawKeypoints( _imageThreshold, _keyPoints, _imageKeypoints, cv::Scalar( 0, 0, 255 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
 
 //		_linesImage = cv::Mat::zeros( _origImage.size(), CV_8UC3 );
 //		for( std::vector<TTrackObject>::iterator itr = m_trackedObjects.begin(); itr != m_trackedObjects.end(); ++itr)
