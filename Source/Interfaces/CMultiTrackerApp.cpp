@@ -8,7 +8,7 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 	, m_controlWindow( argv[2] )
 	, m_trackedObjects( 0 )
 	, m_isDone( false )
-	, _isNewImage( false )
+	, m_isNewImage( false )
 {
 	_calibrationData.blue.colorId 	= "blue";
 	_calibrationData.orange.colorId = "orange";
@@ -16,7 +16,6 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 	_calibrationData.yellow.colorId = "yellow";
 	_calibrationData.green.colorId 	= "green";
 	_calibrationData.red.colorId 	= "red";
-
 }
 
 CMultiTrackerApp::~CMultiTrackerApp()
@@ -53,7 +52,7 @@ bool CMultiTrackerApp::Initialize()
 	_params.filterByInertia 	= true;
 	_params.minInertiaRatio 	= 0.01;
 
-	LOG( INFO ) << "Creating Blod Detector";
+	LOG( INFO ) << "Creating Blob Detector";
 
 	// Init detector with params
 	_detector = cv::SimpleBlobDetector::create( _params );
@@ -71,6 +70,24 @@ bool CMultiTrackerApp::Initialize()
 
 	_colorCal.lowV 	= 0;
 	_colorCal.highV = 255;
+
+	_calibrationData.blue 			= _colorCal;
+	_calibrationData.blue.colorId 	= "blue";
+
+	_calibrationData.green 	= _colorCal;
+	_calibrationData.green.colorId 	= "green";
+
+	_calibrationData.orange = _colorCal;
+	_calibrationData.orange.colorId 	= "orange";
+
+	_calibrationData.purple = _colorCal;
+	_calibrationData.purple.colorId 	= "purple";
+
+	_calibrationData.red 	= _colorCal;
+	_calibrationData.red.colorId 	= "red";
+
+	_calibrationData.yellow	= _colorCal;
+	_calibrationData.yellow.colorId 	= "yellow";
 
 	LOG( INFO ) << "Creating Windows, Trackbars, and Buttons";
 
@@ -104,6 +121,8 @@ void CMultiTrackerApp::CalibrateHSV( int stateIn, void *userDataIn )
 {
 	TColorData *calData = (TColorData*)userDataIn;
 
+	pthread_mutex_lock( &calData->threadMutex );
+
 	LOG( INFO ) << "Calibrating: " << calData->colorId;
 
 	calData->lowH 	= _colorCal.lowH;
@@ -115,125 +134,107 @@ void CMultiTrackerApp::CalibrateHSV( int stateIn, void *userDataIn )
 	calData->lowV 	= _colorCal.lowV;
 	calData->highV	= _colorCal.highV;
 
+	pthread_mutex_unlock( &calData->threadMutex );
+
 }
 
 void CMultiTrackerApp::Run()
 {
 	LOG( INFO ) << "Launching Color Threads";
-	// Set up threads for each color to detect
-	for( size_t t = 0; t < (size_t)NUM_THREADS; ++t )
-	{
-		// Set color count to track color type per thread
-		switch( (int)t )
-		{
-			case EColor::BLUE:
-			{
-				m_colorCount = EColor::BLUE;
-				break;
-			}
-			case EColor::GREEN:
-			{
-				m_colorCount = EColor::GREEN;
-				break;
-			}
-			case EColor::ORANGE:
-			{
-				m_colorCount = EColor::ORANGE;
-				break;
-			}
-			case EColor::PURPLE:
-			{
-				m_colorCount = EColor::PURPLE;
-				break;
-			}
-			case EColor::RED:
-			{
-				m_colorCount = EColor::RED;
-				break;
-			}
-			case EColor::YELLOW:
-			{
-				m_colorCount = EColor::YELLOW;
-				break;
-			}
-			default:
-				break;
-		}
 
-		int ret = pthread_create( &_colorThreads[t], &_threadCalData, RunColorThreads, (void*)this );
-		if( ret )
-		{
-			LOG( ERROR ) << ">>>> Error: Thread create for thread: " << t << " Falied: " << ret << " <<<<";
-		}
-	}
-
-//	LOG( INFO ) << "Launching Camera Thread";
-//
-//	int ret = pthread_create( &_cameraThread, &_threadCalData, RunCamThread, (void*)this );
-//	if( ret )
+//	for( size_t t; t < (size_t)NUM_THREADS; ++t)
 //	{
-//		LOG( ERROR ) << ">>>> Error: Thread create for Camera thread Falied: " << ret << " <<<<";
+//		int ret = pthread_create( &_colorThreads[t], &_threadCalData, RunColorThreads, (void*)this );
+//		if( ret )
+//		{
+//			LOG( ERROR ) << ">>>> Error: Thread create for thread: " << t << " Falied: " << ret << " <<<<";
+//		}
 //	}
 
-
-
-
-	// pthread status and join wait
-	void *status;
-
-	pthread_attr_destroy( &_threadCalData );
-
-	for( size_t t; t < (size_t)NUM_THREADS; ++t)
+	while( !m_isDone )
 	{
-		int ret = pthread_join( _colorThreads[t], &status );
-
-		if( ret )
+		if( !m_cap.read( m_origImage ) )
 		{
-			LOG( ERROR ) << "Error Join Thread: " << ret;
+			LOG( ERROR ) << ">>>> Could not read from video stream: CLOSING <<<<";
+			break;
 		}
-		LOG( INFO ) << "Completed join with thread: " << (long)status;
-	}
-}
-
-void *CMultiTrackerApp::RunColorThreads( void *interfaceIn )
-{
-	CMultiTrackerApp *app = (CMultiTrackerApp*)interfaceIn;
-
-	pthread_mutex_lock( &app->m_threadMutex );
-
-	EColor threadColor = app->m_colorCount;
-
-	LOG( INFO ) << "Running Thread for Color: " << threadColor;
-
-	while( !app->m_isDone )
-	{
-		if( !app->m_origImage.empty() && app->HasNewImage() )
+		if( !m_origImage.empty() )
 		{
-			pthread_mutex_lock( &app->m_threadMutex );
+			m_isNewImage = true;
+		}else
+		{
+			m_isNewImage = false;
+		}
 
-			cv::cvtColor( app->m_origImage, app->_imageHSV, cv::COLOR_BGR2HSV );
+		cv::cvtColor( m_origImage, _imageHSV, cv::COLOR_BGR2HSV );
 
-			cv::inRange( app->_imageHSV, cv::Scalar( 110, 50, 50 ), cv::Scalar( 179, 255, 255 ), app->_imageThreshold );
+		TColorData color;
+
+		for( size_t i = 0; i < 5; ++i)
+		{
+			switch( i ){
+				case EColor::BLUE:
+				{
+					color = _calibrationData.blue;
+					break;
+				}
+				case EColor::ORANGE:
+				{
+					color = _calibrationData.orange;
+					break;
+				}
+				case EColor::GREEN:
+				{
+					color = _calibrationData.green;
+					break;
+				}
+				case EColor::RED:
+				{
+					color = _calibrationData.red;
+					break;
+				}
+				case EColor::PURPLE:
+				{
+					color = _calibrationData.purple;
+					break;
+				}
+				case EColor::YELLOW:
+				{
+					color = _calibrationData.yellow;
+					break;
+				}
+				default:
+				{
+					color = _calibrationData.blue;
+					break;
+				}
+			}
+
+			pthread_mutex_lock( &_calibrationData.blue.threadMutex );
+
+			cv::inRange( _imageHSV, cv::Scalar( color.lowH, color.lowS, color.lowV ), cv::Scalar( color.highH, color.highS, color.highV ), _imageThreshold[i] );
+
+			pthread_mutex_unlock( &_calibrationData.blue.threadMutex );
+
+			cv::inRange( _imageHSV, cv::Scalar( _colorCal.lowH, _colorCal.lowS, _colorCal.lowV ), cv::Scalar( _colorCal.highH, _colorCal.highS, _colorCal.highV ), _controlImage );
 
 			// Morph open - remove small objects from the foreground
-			cv::erode( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-			cv::dilate( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+			cv::erode( _imageThreshold[i], _imageThreshold[i], cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+			cv::dilate( _imageThreshold[i], _imageThreshold[i], cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
 
 			// Morph close - fill small holes in foreground
-			cv::dilate( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
-			cv::erode( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+			cv::dilate( _imageThreshold[i], _imageThreshold[i], cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+			cv::erode( _imageThreshold[i], _imageThreshold[i], cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
 
 			// Detect the blobs
-			app->_detector->detect( app->_imageThreshold, app->_keyPoints );
+			_detector->detect( _imageThreshold[i], _keyPoints );
 
 			// Draw blobs with circles
 			// flags ensures the size of the circle corresponds to the size of the blob
-			cv::drawKeypoints( app->_imageThreshold,app->_keyPoints,app->m_imageKeypoints, cv::Scalar( 0, 255, 0 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+			cv::drawKeypoints( _imageThreshold[i], _keyPoints ,m_imageKeypoints[i], cv::Scalar( 0, 255, 0 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
 
 			// Moments ofthe threshold image for tracking
-			cv::Moments imageMoments = cv::moments( app->_imageThreshold );
-
-
+			cv::Moments imageMoments = cv::moments( _imageThreshold[i] );
 
 			int posX, posY, lastX, lastY;
 			// Filtering noise again with # .m00 area
@@ -247,58 +248,129 @@ void *CMultiTrackerApp::RunColorThreads( void *interfaceIn )
 
 				cv::Scalar color = cv::Scalar( 94, 206, 165 );
 
-				cv::circle( app->m_origImage, cv::Point( posX, posY ), sqrt( imageMoments.m00/3.14 )/10, color, 1.0, 8, 0 );
+				cv::circle( m_origImage, cv::Point( posX, posY ), sqrt( imageMoments.m00/3.14 )/10, color, 1.0, 8, 0 );
 			}
+
+			_imageThresholdSum = cv::Mat::zeros( _imageThreshold[i].size(), CV_8UC1 );
+
+			_imageThresholdSum += _imageThreshold[i];
+
+			_keyPointsSum = cv::Mat::zeros( m_imageKeypoints[0].size(), CV_8UC3 );
+
+			_keyPointsSum += m_imageKeypoints[i];
 		}
 
-		// Unlock image data
-		pthread_mutex_unlock( &app->m_threadMutex );
+		// Display the images
+		cv::imshow( m_controlWindow, _controlImage );
+
+		cv::imshow( "Original-Image", m_origImage );
+
+		cv::imshow( "Blob-Image", _keyPointsSum );
+
+		if( cv::waitKey( 10 ) == 27 )
+			{
+				LOG( INFO ) << ">>>> Exiting <<<<";
+
+				m_isDone = true;
+			}
+
 	}
 
-	return nullptr;
+	// pthread status and join wait
+//	void *status;
+//
+//	pthread_attr_destroy( &_threadCalData );
+//
+//	for( size_t t; t < (size_t)NUM_THREADS; ++t)
+//	{
+//		int ret = pthread_join( _colorThreads[t], &status );
+//
+//		if( ret )
+//		{
+//			LOG( ERROR ) << "Error Join Thread: " << ret;
+//		}
+//
+//		LOG( INFO ) << "Completed join with thread: " << (long)status;
+//	}
 }
 
-void *CMultiTrackerApp::RunCamThread( void *interfaceIn )
+void *CMultiTrackerApp::RunColorThreads( void *interfaceIn )
 {
 	CMultiTrackerApp *app = (CMultiTrackerApp*)interfaceIn;
 
-	while( !app->m_isDone )
-	{
-		pthread_mutex_lock( &app->m_threadMutex );
+//	while( !app->m_isDone )
+//	{
+//
+//		LOG(INFO)<<"HERE";
+//		if( app->m_isNewImage )
+//		{
+////			for( size_t i = 0; i < 6; ++i)
+////			{
+////			pthread_mutex_lock( &app->m_threadMutex );
+//
+//				cv::cvtColor( app->m_origImage, app->_imageHSV, cv::COLOR_BGR2HSV );
+//
+//				cv::inRange( app->_imageHSV, cv::Scalar( 110, 50, 50 ), cv::Scalar( 179, 255, 255 ), app->_imageThreshold );
+//
+//				// Morph open - remove small objects from the foreground
+//				cv::erode( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+//				cv::dilate( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+//
+//				// Morph close - fill small holes in foreground
+//				cv::dilate( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+//				cv::erode( app->_imageThreshold, app->_imageThreshold, cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
+//
+//				// Detect the blobs
+//				app->_detector->detect( app->_imageThreshold, app->_keyPoints );
+//
+//				// Draw blobs with circles
+//				// flags ensures the size of the circle corresponds to the size of the blob
+//				cv::drawKeypoints( app->_imageThreshold,app->_keyPoints,app->m_imageKeypoints, cv::Scalar( 0, 255, 0 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+//
+//				// Moments ofthe threshold image for tracking
+//				cv::Moments imageMoments = cv::moments( app->_imageThreshold );
+//
+//				int posX, posY, lastX, lastY;
+//				// Filtering noise again with # .m00 area
+//				if( imageMoments.m00 > 10000 )
+//				{
+//					posX = imageMoments.m10 / imageMoments.m00;
+//					posY = imageMoments.m01 /imageMoments.m00;
+//
+//					lastX = posX;
+//					lastY = posY;
+//
+//					cv::Scalar color = cv::Scalar( 94, 206, 165 );
+//
+//					cv::circle( app->m_origImage, cv::Point( posX, posY ), sqrt( imageMoments.m00/3.14 )/10, color, 1.0, 8, 0 );
+//				}
+////			}
+//
+//				// Display the images
+////						cv::imshow( app->m_controlWindow, app->_imageThreshold );
+//
+////						cv::imshow( "Original-Image", app->m_origImage );
+//
+//						cv::imshow( "Blob-Image", app->m_imageKeypoints );
+//
+//						if( cv::waitKey( 0 ) == 27 )
+//								{
+////									LOG( INFO ) << ">>>> Exiting <<<<";
+//
+////									app->m_isDone = true;
+//								}
+//
+//				// Unlock image data
+//						pthread_mutex_unlock( &app->m_threadMutex );
 
-		if( !app->m_cap.read( app->m_origImage ) )
-		{
-			LOG( ERROR ) << ">>>> Could not read from video stream: CLOSING <<<<";
-			break;
-		}
-		if( !app->m_origImage.empty() && app->HasNewImage() )
-		{
-			// Lock image data for display
-			pthread_mutex_lock( &app->m_threadMutex );
 
-			// Display the images
-			cv::imshow( app->m_controlWindow, app->_imageThreshold );
+//		}
 
-			cv::imshow( "Original-Image", app->m_origImage );
 
-			cv::imshow( "Blob-Image", app->m_imageKeypoints );
 
-			// Unlock image data
-			pthread_mutex_unlock( &app->m_threadMutex );
 
-			if( cv::waitKey( 10 ) == 27 )
-			{
-				LOG( INFO ) << ">>>> Exiting <<<<";
-				break;
-			}
-		}
-		pthread_mutex_unlock( &app->m_threadMutex );
-	}
+
+//	}
 
 	return nullptr;
-}
-
-bool CMultiTrackerApp::HasNewImage()
-{
-	return _isNewImage;
 }

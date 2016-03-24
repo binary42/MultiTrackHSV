@@ -16,6 +16,8 @@ struct TColorData{
 	// The amount of black
 	int 			lowV;
 	int 			highV;
+
+	pthread_mutex_t		threadMutex;
 };
 
 
@@ -68,8 +70,10 @@ public:
 	cv::SimpleBlobDetector::Params	_params;
 	std::vector<TTrackObject>		m_trackedObjects;
 
-	const int 						NUM_THREADS = 6;
+	static const int 				NUM_THREADS = 1;
 	EColor 							m_colorCount;
+
+	static const int				NUM_COLORS = 6;
 
 	pthread_mutex_t					m_threadMutex;
 	bool							m_isDone;
@@ -77,15 +81,17 @@ public:
 	cv::VideoCapture				m_cap;
 	cv::Mat							m_origImage;
 
-	cv::Mat 						m_imageKeypoints;
+	cv::Mat 						m_imageKeypoints[NUM_COLORS];
+
 	std::string						m_controlWindow;
+
+	bool 							m_isNewImage;
 
 	// Methods
 	bool Initialize();
 	static void CalibrateHSV( int stateIn, void *userDataIn );
-
 	void Run();
-	bool HasNewImage();
+
 
 private:
 	// Attributes
@@ -93,23 +99,22 @@ private:
 
 	cv::Mat								_imageHSV;
 
-	cv::Mat								_imageThreshold;
+	cv::Mat								_imageThreshold[NUM_COLORS];
+	cv::Mat								_imageThresholdSum;
+	cv::Mat								_controlImage;
 	cv::Mat								_linesImage;
 
 	TCalibration						_calibrationData;
 	cv::Ptr<cv::SimpleBlobDetector> 	_detector;
 
 	std::vector<cv::KeyPoint>			_keyPoints;
+	cv::Mat								_keyPointsSum;
 
-	pthread_t							_colorThreads[];
+	pthread_t							_colorThreads[NUM_THREADS];
 	pthread_attr_t						_threadCalData;
 
 	pthread_t							_cameraThread;
 
-
-	bool 								_isNewImage;
-
 	// Methods
 	static void *RunColorThreads( void *interfaceIn );
-	static void *RunCamThread( void *interfaceIn );
 };
