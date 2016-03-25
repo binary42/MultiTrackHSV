@@ -16,6 +16,8 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 	_calibrationData.yellow.colorId = "yellow";
 	_calibrationData.green.colorId 	= "green";
 	_calibrationData.red.colorId 	= "red";
+
+
 }
 
 CMultiTrackerApp::~CMultiTrackerApp()
@@ -151,6 +153,8 @@ void CMultiTrackerApp::Run()
 //		}
 //	}
 
+
+
 	while( !m_isDone )
 	{
 		if( !m_cap.read( m_origImage ) )
@@ -169,6 +173,10 @@ void CMultiTrackerApp::Run()
 		cv::cvtColor( m_origImage, _imageHSV, cv::COLOR_BGR2HSV );
 
 		TColorData color;
+
+//		_imageThresholdSum = cv::Mat::zeros( m_origImage.size(), CV_8UC1 );
+
+		_keyPointsSum = cv::Mat::zeros( m_origImage.size(), CV_8UC3 );
 
 		for( size_t i = 0; i < 5; ++i)
 		{
@@ -226,12 +234,15 @@ void CMultiTrackerApp::Run()
 			cv::dilate( _imageThreshold[i], _imageThreshold[i], cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
 			cv::erode( _imageThreshold[i], _imageThreshold[i], cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
 
+
 			// Detect the blobs
 			_detector->detect( _imageThreshold[i], _keyPoints );
 
 			// Draw blobs with circles
 			// flags ensures the size of the circle corresponds to the size of the blob
 			cv::drawKeypoints( _imageThreshold[i], _keyPoints ,m_imageKeypoints[i], cv::Scalar( 0, 255, 0 ), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+
+			//_keyPoints.clear();
 
 			// Moments ofthe threshold image for tracking
 			cv::Moments imageMoments = cv::moments( _imageThreshold[i] );
@@ -240,22 +251,23 @@ void CMultiTrackerApp::Run()
 			// Filtering noise again with # .m00 area
 			if( imageMoments.m00 > 10000 )
 			{
-				posX = imageMoments.m10 / imageMoments.m00;
-				posY = imageMoments.m01 /imageMoments.m00;
+				TTrackObject object;
 
-				lastX = posX;
-				lastY = posY;
+				object.posX = imageMoments.m10 / imageMoments.m00;
+				object.posY = imageMoments.m01 /imageMoments.m00;
 
+				object.lastX = object.posX;
+				object.lastY = object.posY;
+
+				// Yellow
 				cv::Scalar color = cv::Scalar( 94, 206, 165 );
 
-				cv::circle( m_origImage, cv::Point( posX, posY ), sqrt( imageMoments.m00/3.14 )/10, color, 1.0, 8, 0 );
+				cv::circle( m_origImage, cv::Point( posX, posY ), sqrt( imageMoments.m00/3.14 )/10, color, 1.5, 8, 0 );
 			}
 
-			_imageThresholdSum = cv::Mat::zeros( _imageThreshold[i].size(), CV_8UC1 );
 
-			_imageThresholdSum += _imageThreshold[i];
 
-			_keyPointsSum = cv::Mat::zeros( m_imageKeypoints[0].size(), CV_8UC3 );
+//			_imageThresholdSum += _imageThreshold[i];
 
 			_keyPointsSum += m_imageKeypoints[i];
 		}
