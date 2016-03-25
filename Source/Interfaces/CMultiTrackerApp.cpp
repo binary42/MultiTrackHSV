@@ -253,11 +253,11 @@ void CMultiTrackerApp::Run()
 			{
 				TTrackObject object;
 
-				object.posX = imageMoments.m10 / imageMoments.m00;
-				object.posY = imageMoments.m01 /imageMoments.m00;
+				posX = imageMoments.m10 / imageMoments.m00;
+				posY = imageMoments.m01 /imageMoments.m00;
 
-				object.lastX = object.posX;
-				object.lastY = object.posY;
+				lastX = object.posX;
+				lastY = object.posY;
 
 				// Yellow
 				cv::Scalar color = cv::Scalar( 94, 206, 165 );
