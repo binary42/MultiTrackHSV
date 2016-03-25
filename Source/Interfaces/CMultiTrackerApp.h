@@ -97,20 +97,14 @@ public:
 
 private:
 	// Attributes
-
-
 	cv::Mat								_imageHSV;
 
-	cv::Mat								_imageThreshold;
+	cv::Mat								_imageThreshold[NUM_COLORS];
 	cv::Mat								_imageThresholdSum;
 	cv::Mat								_controlImage;
 	cv::Mat								_linesImage;
 
 	TCalibration						_calibrationData;
-	cv::Ptr<cv::SimpleBlobDetector> 	_detector;
-
-	std::vector<cv::KeyPoint>			_keyPoints;
-	cv::Mat								_keyPointsSum;
 
 	pthread_t							_colorThreads[NUM_THREADS];
 	pthread_attr_t						_threadCalData;
