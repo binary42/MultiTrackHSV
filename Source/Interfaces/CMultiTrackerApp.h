@@ -81,11 +81,13 @@ public:
 	cv::VideoCapture				m_cap;
 	cv::Mat							m_origImage;
 
-	cv::Mat 						m_imageKeypoints[NUM_COLORS];
-
+	cv::Mat 						m_imageKeypoints;
 	std::string						m_controlWindow;
 
 	bool 							m_isNewImage;
+	bool							m_track;
+
+	pthread_mutex_t					m_buttonMutex;
 
 	// Methods
 	bool Initialize();
@@ -99,7 +101,7 @@ private:
 
 	cv::Mat								_imageHSV;
 
-	cv::Mat								_imageThreshold[NUM_COLORS];
+	cv::Mat								_imageThreshold;
 	cv::Mat								_imageThresholdSum;
 	cv::Mat								_controlImage;
 	cv::Mat								_linesImage;
@@ -115,6 +117,8 @@ private:
 
 	pthread_t							_cameraThread;
 
+
 	// Methods
 	static void *RunColorThreads( void *interfaceIn );
+	static void ToggleTrack( int statIn, void *userData );
 };
