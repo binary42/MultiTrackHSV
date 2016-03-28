@@ -144,15 +144,6 @@ void CMultiTrackerApp::Run()
 {
 	LOG( INFO ) << "Launching Color Threads";
 
-//	for( size_t t; t < (size_t)NUM_THREADS; ++t)
-//	{
-//		int ret = pthread_create( &_colorThreads[t], &_threadCalData, RunColorThreads, (void*)this );
-//		if( ret )
-//		{
-//			LOG( ERROR ) << ">>>> Error: Thread create for thread: " << t << " Falied: " << ret << " <<<<";
-//		}
-//	}
-
 	bool newObject = false;
 
 	TColorData	color;
@@ -293,25 +284,7 @@ void CMultiTrackerApp::Run()
 
 			m_isDone = true;
 		}
-
 	}
-
-	// pthread status and join wait
-//	void *status;
-//
-//	pthread_attr_destroy( &_threadCalData );
-//
-//	for( size_t t; t < (size_t)NUM_THREADS; ++t)
-//	{
-//		int ret = pthread_join( _colorThreads[t], &status );
-//
-//		if( ret )
-//		{
-//			LOG( ERROR ) << "Error Join Thread: " << ret;
-//		}
-//
-//		LOG( INFO ) << "Completed join with thread: " << (long)status;
-//	}
 }
 
 void *CMultiTrackerApp::RunColorThreads( void *interfaceIn )
