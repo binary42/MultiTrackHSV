@@ -32,6 +32,8 @@
 #include "../../Libraries/EasyLogging/easylogging++.h"
 #include "../../Libraries/Opencv3.1/include/opencv2/opencv.hpp"
 
+#include "rapidjson/document.h"
+
 #define PRINT_VAR(x) #x << '=' << x
 
 namespace util

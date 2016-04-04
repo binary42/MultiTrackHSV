@@ -47,28 +47,8 @@ public:
 	virtual ~CMultiTrackerApp();
 
 	// Attibutes
-	struct TTrackObject	{
-		// Color string we are tracking
-		TColorData				colorData;
-
-		// 1st order spatial around x-axis - center of object
-		double 					moments01;
-		// 1st order spatial around y-axis - center of object
-		double 					moments10;
-		// Area of white of object
-		double 					momentsArea;
-
-		// Position of object in camera frame
-		int 					posX;
-		int 					posY;
-
-		// Last known position of object
-		int 					lastX;
-		int 					lastY;
-	} m_object;
-
 	cv::SimpleBlobDetector::Params	_params;
-	std::vector<TTrackObject>		m_trackedObjects;
+	std::vector<TColorData>		m_calibrationObjects;
 
 	static const int 				NUM_THREADS = 1;
 	EColor 							m_colorCount;
@@ -91,7 +71,11 @@ public:
 
 	// Methods
 	bool Initialize();
+	void ParseJsonFile( const std::string &fileIn );
+
+	static void SaveCalibration( int stateIn, void *userDataIn );
 	static void CalibrateHSV( int stateIn, void *userDataIn );
+
 	void Run();
 
 
@@ -110,6 +94,11 @@ private:
 	pthread_attr_t						_threadCalData;
 
 	pthread_t							_cameraThread;
+
+	bool								_runImage;
+	bool								_recurseDir;
+
+	rapidjson::Document					_calibrationDoc;
 
 
 	// Methods

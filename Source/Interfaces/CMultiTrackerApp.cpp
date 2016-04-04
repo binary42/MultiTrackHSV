@@ -1,15 +1,13 @@
-// Inspired by http://opencv-srf.blogspot.com/2010/09/object-detection-using-color-seperation.html
 #include "CMultiTrackerApp.h"
 
 static TColorData				_colorCal;
 
 CMultiTrackerApp::CMultiTrackerApp( char **argv )
-	: m_cap( atoi( argv[1] ) )
-	, m_controlWindow( argv[2] )
-	, m_trackedObjects( 0 )
+	: m_calibrationObjects( 0 )
 	, m_isDone( false )
 	, m_isNewImage( false )
 	, m_track( false )
+	, _recurseDir( false )
 {
 	_calibrationData.blue.colorId 	= "blue";
 	_calibrationData.orange.colorId = "orange";
@@ -17,6 +15,20 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 	_calibrationData.yellow.colorId = "yellow";
 	_calibrationData.green.colorId 	= "green";
 	_calibrationData.red.colorId 	= "red";
+
+	if( !strcmp( argv[1], "vid" ) )
+	{
+		m_cap.open( atoi( argv[2] ) );
+		m_controlWindow = argv[3];
+	}else if( !strcmp(argv[2], "image" ) )
+	{
+		m_cap.open( atoi( argv[3] ) );
+		m_controlWindow = argv[4];
+		_runImage = true;
+	}else if( !strcmp( argv[2], "dir" ) )
+	{
+		_recurseDir = true;
+	}
 }
 
 CMultiTrackerApp::~CMultiTrackerApp()
@@ -36,6 +48,11 @@ bool CMultiTrackerApp::Initialize()
 	pthread_mutex_init( &m_threadMutex, nullptr );
 	pthread_mutex_init( &m_buttonMutex, nullptr );
 
+	LOG( INFO ) << "Parsing Calibration File";
+
+	// Parse calibration file
+	ParseJsonFile( "Config/calibration.json" );
+
 	// We use this private class variable to disallow active changes to the calibration.
 	// If we use the _calibrationData structure for calibration and adjustment in real time, we have to retrain
 	// at this time.
@@ -50,11 +67,11 @@ bool CMultiTrackerApp::Initialize()
 	_colorCal.lowV 	= 0;
 	_colorCal.highV = 255;
 
-	_calibrationData.blue 			= _colorCal;
-	_calibrationData.blue.colorId 	= "blue";
+	_calibrationData.blue 				= _colorCal;
+	_calibrationData.blue.colorId 		= "blue";
 
-	_calibrationData.green 			= _colorCal;
-	_calibrationData.green.colorId 	= "green";
+	_calibrationData.green 				= _colorCal;
+	_calibrationData.green.colorId 		= "green";
 
 	_calibrationData.orange 			= _colorCal;
 	_calibrationData.orange.colorId 	= "orange";
@@ -62,8 +79,8 @@ bool CMultiTrackerApp::Initialize()
 	_calibrationData.purple				= _colorCal;
 	_calibrationData.purple.colorId 	= "purple";
 
-	_calibrationData.red 			= _colorCal;
-	_calibrationData.red.colorId 	= "red";
+	_calibrationData.red 				= _colorCal;
+	_calibrationData.red.colorId 		= "red";
 
 	_calibrationData.yellow				= _colorCal;
 	_calibrationData.yellow.colorId 	= "yellow";
@@ -94,8 +111,82 @@ bool CMultiTrackerApp::Initialize()
 	cv::createButton( "Green", CalibrateHSV, &_calibrationData.green, CV_PUSH_BUTTON, 0 );
 
 	cv::createButton( "Start/Stop Track", ToggleTrack, this, CV_PUSH_BUTTON, 0 );
+	cv::createButton( "Save Cal", SaveCalibration, this, CV_PUSH_BUTTON, 0 );
 
 	return true;
+}
+
+void CMultiTrackerApp::SaveCalibration( int stateIn, void *userDataIn )
+{
+	TColorData *calData = (TColorData*)userDataIn;
+
+	pthread_mutex_lock( &calData->threadMutex );
+
+	LOG( INFO ) << "Saving Calibration Data";
+
+	for( size_t i = 0; i < NUM_COLORS; ++i )
+	{
+		calData->lowH 	= _colorCal.lowH;
+		calData->highH 	= _colorCal.highH;
+
+		calData->lowS 	= _colorCal.lowS;
+		calData->highS 	= _colorCal.highS;
+
+		calData->lowV 	= _colorCal.lowV;
+		calData->highV	= _colorCal.highV;
+	}
+
+	pthread_mutex_unlock( &calData->threadMutex );
+}
+
+void CMultiTrackerApp::ParseJsonFile( const std::string &fileIn )
+{
+	TColorData color;
+
+	std::ifstream calibrationFile( fileIn.c_str() );
+
+	if( calibrationFile )
+	{
+		// Write to buffer
+		std::stringstream dataBuf;
+
+		dataBuf << calibrationFile.rdbuf();
+
+		calibrationFile.close();
+
+		// Create document
+		if( _calibrationDoc.Parse<0>( dataBuf.str().c_str() ).HasParseError() )
+		{
+			LOG( ERROR ) << ">>>> Cannot Open Json File <<<<";
+
+			auto errorString( "Unable to Parse .json file: " + fileIn );
+
+			throw std::invalid_argument( errorString );
+		}
+	}else
+	{
+		LOG( ERROR ) << ">>>> Cannot Open Json File <<<<";
+
+		auto errorString( "Unable to Parse .json file: " + fileIn );
+
+		throw std::invalid_argument( errorString );
+	}
+
+	for( size_t i = 0; i < NUM_COLORS; ++i)
+	{
+		color.colorId 	= _calibrationData[i].GetString();
+//		color.highH 	= atoi( fileIn[i]["highH"].GetString() );
+//
+//		color.highS 	= atoi( fileIn[i]["highS"].GetString() );
+//		color.highV 	= atoi( fileIn[i]["highV"].GetString() );
+//
+//		color.lowH 		= atoi( fileIn[i]["lowH"].GetString() );
+//		color.lowS	 	= atoi( fileIn[i]["lowS"].GetString() );
+//
+//		color.lowV		= atoi( fileIn[i]["lowV"].GetString() );
+//
+//		m_calibrationObjects.push_back( color );
+	}
 }
 
 void CMultiTrackerApp::CalibrateHSV( int stateIn, void *userDataIn )
@@ -144,11 +235,7 @@ void CMultiTrackerApp::Run()
 {
 	LOG( INFO ) << "Launching Color Threads";
 
-	bool newObject = false;
-
 	TColorData	color;
-
-	TTrackObject object;
 
 	while( !m_isDone )
 	{
@@ -160,52 +247,18 @@ void CMultiTrackerApp::Run()
 
 		cv::cvtColor( m_origImage, _imageHSV, cv::COLOR_BGR2HSV );
 
-		cv::inRange( _imageHSV, cv::Scalar( _colorCal.lowH, _colorCal.lowS, _colorCal.lowV ), cv::Scalar( _colorCal.highH, _colorCal.highS, _colorCal.highV ), _controlImage );
+		// Display separate threshold window with controls
+		cv::inRange( _imageHSV, cv::Scalar( _colorCal.lowH, _colorCal.lowS, _colorCal.lowV )
+											, cv::Scalar( _colorCal.highH,_colorCal.highS, _colorCal.highV ), _controlImage );
 
 		if( m_track )
 		{
-
-			for( size_t i = 0; i < 5; ++i)
+			// Cycle through the colors and track
+			for( size_t i = 0; i < NUM_COLORS; ++i)
 			{
-				switch( i ){
-					case EColor::BLUE:
-					{
-						color = _calibrationData.blue;
-						break;
-					}
-					case EColor::ORANGE:
-					{
-						color = _calibrationData.orange;
-						break;
-					}
-					case EColor::GREEN:
-					{
-						color = _calibrationData.green;
-						break;
-					}
-					case EColor::RED:
-					{
-						color = _calibrationData.red;
-						break;
-					}
-					case EColor::PURPLE:
-					{
-						color = _calibrationData.purple;
-						break;
-					}
-					case EColor::YELLOW:
-					{
-						color = _calibrationData.yellow;
-						break;
-					}
-					default:
-					{
-						color = _calibrationData.blue;
-						break;
-					}
-				}
-
-				cv::inRange( _imageHSV, cv::Scalar( color.lowH, color.lowS, color.lowV ), cv::Scalar( color.highH, color.highS, color.highV ), _imageThreshold[i] );
+				cv::inRange( _imageHSV, cv::Scalar( m_calibrationObjects[i].lowH,  m_calibrationObjects[i].lowS,  m_calibrationObjects[i].lowV )
+													, cv::Scalar( m_calibrationObjects[i].highH, m_calibrationObjects[i].highS
+													, m_calibrationObjects[i].highV ), _imageThreshold[i] );
 
 				// Morph open - remove small objects from the foreground
 				cv::erode( _imageThreshold[i], _imageThreshold[i], cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size( 5, 5 ) ) );
@@ -221,7 +274,6 @@ void CMultiTrackerApp::Run()
 				findContours( _imageThreshold[i], contours, heirarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE );
 
 				double refArea = 0;
-				newObject = false;
 
 				if( heirarchy.size() > 0 )
 				{
@@ -236,36 +288,16 @@ void CMultiTrackerApp::Run()
 
 							if( imageMoments.m00 > 1000 )
 							{
-								object.moments01 = imageMoments.m01;
-								object.moments10 = imageMoments.m10;
-								object.momentsArea = imageMoments.m00;
+								int posX, posY;
 
-								object.posX = imageMoments.m10 / imageMoments.m00;
-								object.posY = imageMoments.m01 /imageMoments.m00;
+								posX = imageMoments.m10 / imageMoments.m00;
+								posY = imageMoments.m01 /imageMoments.m00;
 
-								object.lastX = object.posX;
-								object.lastY = object.posY;
-
-								object.colorData.colorId = color.colorId;
-								object.colorData.highH = color.highH;
-
-								object.colorData.highH = color.highS;
-								object.colorData.highH = color.highV;
-
-								object.colorData.highH = color.lowH;
-								object.colorData.highH = color.lowS;
-
-								object.colorData.highH = color.lowV;
-
-	//							m_trackedObjects.push_back( object );
 								// Yellow
 								cv::Scalar color = cv::Scalar( 94, 206, 165 );
-								cv::circle( m_origImage, cv::Point( object.posX, object.posY ), sqrt( object.momentsArea/3.14 ), color, 2, 8, 0 );
 
-								newObject = true;
-							}else
-							{LOG(INFO)<<"NEWOBJECT = FALSE";
-								newObject = false;
+								cv::circle( m_origImage, cv::Point( posX, posY ), sqrt( imageMoments.m00/3.14 ), color, 2, 8, 0 );
+
 							}
 						}
 					}

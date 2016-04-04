@@ -28,10 +28,11 @@ void DisplayUsage()
 {
 	LOG( INFO ) << ">>>>=== Missing Arguments ===<<<<";
 
-	LOG( INFO ) << "Usage: ./MultiTrackerApp [mode] [window name/filename]\n"
-	 << " \nWhere [mode] is either 'image' or 'cam\n"
-	 << "If [mode] is cam: input the dvice number of the camera stream followed by the output window name. i.e. ./MutiTrackerApp cam 0 TestOutput\n"
-	 << "If [mode] is image: input the image location. i.e. ./MultiTrackerApp image /home/test.png. Can be .jpg or .png";
+	LOG( INFO ) << "Usage: ./MultiTrackerApp [mode] [window name/directory/filename]\n"
+	 << " \nWhere [mode] is either 'image' or 'vid' or 'dir'\n"
+	 << "If [mode] is vid: input the device number of the camera stream followed by the output window name. i.e. ./MutiTrackerApp vid 0 TestOutput\n"
+	 << "If [mode] is image: input the image location. i.e. ./MultiTrackerApp image /home/test.png.\n"
+	 << "If [mode] is dir: input the location to recurse. i.e. /home/pictures";
 
 	LOG( INFO ) << ">>>>=========================<<<<";
 }
