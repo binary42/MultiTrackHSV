@@ -172,9 +172,15 @@ void CMultiTrackerApp::ParseJsonFile( const std::string &fileIn )
 		throw std::invalid_argument( errorString );
 	}
 
-	for( size_t i = 0; i < NUM_COLORS; ++i)
-	{
-		color.colorId 	= _calibrationData[i].GetString();
+	const auto& detectorParamString = _calibrationDoc["blue"];
+
+	std::string col = detectorParamString["color"].GetString();
+
+	LOG( INFO ) << "Color: " << col;
+
+//	for( size_t i = 0; i < NUM_COLORS; ++i)
+//	{
+//		color.colorId 	= _calibrationDoc[i].GetString();
 //		color.highH 	= atoi( fileIn[i]["highH"].GetString() );
 //
 //		color.highS 	= atoi( fileIn[i]["highS"].GetString() );
@@ -186,7 +192,7 @@ void CMultiTrackerApp::ParseJsonFile( const std::string &fileIn )
 //		color.lowV		= atoi( fileIn[i]["lowV"].GetString() );
 //
 //		m_calibrationObjects.push_back( color );
-	}
+//	}
 }
 
 void CMultiTrackerApp::CalibrateHSV( int stateIn, void *userDataIn )
