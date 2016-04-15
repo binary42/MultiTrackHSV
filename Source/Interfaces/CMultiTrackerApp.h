@@ -67,6 +67,8 @@ public:
 	bool 							m_isNewImage;
 	bool							m_track;
 
+	TCalibration					m_calibrationData;
+
 	pthread_mutex_t					m_buttonMutex;
 
 	// Methods
@@ -75,6 +77,8 @@ public:
 
 	static void SaveCalibration( int stateIn, void *userDataIn );
 	static void CalibrateHSV( int stateIn, void *userDataIn );
+
+	static void LoadCalibration( int stateIn, void *userDataIn );
 
 	void Run();
 
@@ -88,7 +92,7 @@ private:
 	cv::Mat								_controlImage;
 	cv::Mat								_linesImage;
 
-	TCalibration						_calibrationData;
+
 
 	pthread_t							_colorThreads[NUM_THREADS];
 	pthread_attr_t						_threadCalData;

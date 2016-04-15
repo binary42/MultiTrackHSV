@@ -9,12 +9,12 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 	, m_track( false )
 	, _recurseDir( false )
 {
-	_calibrationData.blue.colorId 	= "blue";
-	_calibrationData.orange.colorId = "orange";
-	_calibrationData.purple.colorId = "purple";
-	_calibrationData.yellow.colorId = "yellow";
-	_calibrationData.green.colorId 	= "green";
-	_calibrationData.red.colorId 	= "red";
+	m_calibrationData.blue.colorId 	= "blue";
+	m_calibrationData.orange.colorId = "orange";
+	m_calibrationData.purple.colorId = "purple";
+	m_calibrationData.yellow.colorId = "yellow";
+	m_calibrationData.green.colorId 	= "green";
+	m_calibrationData.red.colorId 	= "red";
 
 	if( !strcmp( argv[1], "vid" ) )
 	{
@@ -69,23 +69,23 @@ bool CMultiTrackerApp::Initialize()
 	_colorCal.lowV 	= 0;
 	_colorCal.highV = 255;
 
-	_calibrationData.blue 				= _colorCal;
-	_calibrationData.blue.colorId 		= "blue";
+	m_calibrationData.blue 				= _colorCal;
+	m_calibrationData.blue.colorId 		= "blue";
 
-	_calibrationData.green 				= _colorCal;
-	_calibrationData.green.colorId 		= "green";
+	m_calibrationData.green 				= _colorCal;
+	m_calibrationData.green.colorId 		= "green";
 
-	_calibrationData.orange 			= _colorCal;
-	_calibrationData.orange.colorId 	= "orange";
+	m_calibrationData.orange 			= _colorCal;
+	m_calibrationData.orange.colorId 	= "orange";
 
-	_calibrationData.purple				= _colorCal;
-	_calibrationData.purple.colorId 	= "purple";
+	m_calibrationData.purple				= _colorCal;
+	m_calibrationData.purple.colorId 	= "purple";
 
-	_calibrationData.red 				= _colorCal;
-	_calibrationData.red.colorId 		= "red";
+	m_calibrationData.red 				= _colorCal;
+	m_calibrationData.red.colorId 		= "red";
 
-	_calibrationData.yellow				= _colorCal;
-	_calibrationData.yellow.colorId 	= "yellow";
+	m_calibrationData.yellow				= _colorCal;
+	m_calibrationData.yellow.colorId 	= "yellow";
 
 	LOG( INFO ) << "Creating Windows, Trackbars, and Buttons";
 
@@ -103,19 +103,88 @@ bool CMultiTrackerApp::Initialize()
 	cv::createTrackbar( "HighV", m_controlWindow, &_colorCal.highV, 255 );
 
 	// Buttons for color calibration
-	cv::createButton( "Orange", CalibrateHSV, &_calibrationData.orange, CV_PUSH_BUTTON, 0 );
-	cv::createButton( "Blue", CalibrateHSV, &_calibrationData.blue, CV_PUSH_BUTTON, 0 );
+	cv::createButton( "Orange", CalibrateHSV, &m_calibrationData.orange, CV_PUSH_BUTTON, 0 );
+	cv::createButton( "Blue", CalibrateHSV, &m_calibrationData.blue, CV_PUSH_BUTTON, 0 );
 
-	cv::createButton( "Red", CalibrateHSV, &_calibrationData.red, CV_PUSH_BUTTON, 0 );
-	cv::createButton( "Purple", CalibrateHSV, &_calibrationData.purple, CV_PUSH_BUTTON, 0 );
+	cv::createButton( "Red", CalibrateHSV, &m_calibrationData.red, CV_PUSH_BUTTON, 0 );
+	cv::createButton( "Purple", CalibrateHSV, &m_calibrationData.purple, CV_PUSH_BUTTON, 0 );
 
-	cv::createButton( "Yellow", CalibrateHSV, &_calibrationData.yellow, CV_PUSH_BUTTON, 0 );
-	cv::createButton( "Green", CalibrateHSV, &_calibrationData.green, CV_PUSH_BUTTON, 0 );
+	cv::createButton( "Yellow", CalibrateHSV, &m_calibrationData.yellow, CV_PUSH_BUTTON, 0 );
+	cv::createButton( "Green", CalibrateHSV, &m_calibrationData.green, CV_PUSH_BUTTON, 0 );
 
 	cv::createButton( "Start/Stop Track", ToggleTrack, this, CV_PUSH_BUTTON, 0 );
+	cv::createButton( "Load New Cal", LoadCalibration, this, CV_PUSH_BUTTON, 0 );
+
 	cv::createButton( "Save Cal", SaveCalibration, this, CV_PUSH_BUTTON, 0 );
 
 	return true;
+}
+
+void CMultiTrackerApp::LoadCalibration( int stateIn, void *userDataIn )
+{
+	CMultiTrackerApp *calData = (CMultiTrackerApp*)userDataIn;
+
+	pthread_mutex_lock( &calData->m_buttonMutex );
+
+	for( std::vector<TColorData>::iterator itr = calData->m_calibrationObjects.begin(); itr != calData->m_calibrationObjects.end(); ++itr )
+	{
+		if( itr->colorId == "red" )
+		{
+			itr->highH = calData->m_calibrationData.red.highH;
+			itr->highS = calData->m_calibrationData.red.highS;
+			itr->highV = calData->m_calibrationData.red.highV;
+			itr->lowH = calData->m_calibrationData.red.lowH;
+			itr->lowS= calData->m_calibrationData.red.lowS;
+			itr->lowV = calData->m_calibrationData.red.lowV;
+		}
+		if( itr->colorId == "blue" )
+		{
+			itr->highH = calData->m_calibrationData.blue.highH;
+			itr->highS = calData->m_calibrationData.blue.highS;
+			itr->highV = calData->m_calibrationData.blue.highV;
+			itr->lowH = calData->m_calibrationData.blue.lowH;
+			itr->lowS= calData->m_calibrationData.blue.lowS;
+			itr->lowV = calData->m_calibrationData.blue.lowV;
+		}
+		if( itr->colorId == "green" )
+		{
+			itr->highH = calData->m_calibrationData.green.highH;
+			itr->highS = calData->m_calibrationData.green.highS;
+			itr->highV = calData->m_calibrationData.green.highV;
+			itr->lowH = calData->m_calibrationData.green.lowH;
+			itr->lowS= calData->m_calibrationData.green.lowS;
+			itr->lowV = calData->m_calibrationData.green.lowV;
+		}
+		if( itr->colorId == "yellow" )
+		{
+			itr->highH = calData->m_calibrationData.yellow.highH;
+			itr->highS = calData->m_calibrationData.yellow.highS;
+			itr->highV = calData->m_calibrationData.yellow.highV;
+			itr->lowH = calData->m_calibrationData.yellow.lowH;
+			itr->lowS= calData->m_calibrationData.yellow.lowS;
+			itr->lowV = calData->m_calibrationData.yellow.lowV;
+		}
+		if( itr->colorId == "purple" )
+		{
+			itr->highH = calData->m_calibrationData.purple.highH;
+			itr->highS = calData->m_calibrationData.purple.highS;
+			itr->highV = calData->m_calibrationData.purple.highV;
+			itr->lowH = calData->m_calibrationData.purple.lowH;
+			itr->lowS= calData->m_calibrationData.purple.lowS;
+			itr->lowV = calData->m_calibrationData.purple.lowV;
+		}
+		if( itr->colorId == "orange" )
+		{
+			itr->highH = calData->m_calibrationData.orange.highH;
+			itr->highS = calData->m_calibrationData.orange.highS;
+			itr->highV = calData->m_calibrationData.orange.highV;
+			itr->lowH = calData->m_calibrationData.orange.lowH;
+			itr->lowS= calData->m_calibrationData.orange.lowS;
+			itr->lowV = calData->m_calibrationData.orange.lowV;
+		}
+	}
+
+	pthread_mutex_unlock( &calData->m_buttonMutex );
 }
 
 void CMultiTrackerApp::SaveCalibration( int stateIn, void *userDataIn )
@@ -293,7 +362,7 @@ void CMultiTrackerApp::ToggleTrack( int statIn, void *userDataIn )
 
 	if( app->m_track )
 	{
-		LOG( INFO ) << "Not Tracking;";
+		LOG( INFO ) << "Not Tracking";
 
 		app->m_track = false;
 	}else
