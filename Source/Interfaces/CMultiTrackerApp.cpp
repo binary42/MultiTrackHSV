@@ -29,6 +29,8 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 	{
 		_recurseDir = true;
 	}
+
+
 }
 
 CMultiTrackerApp::~CMultiTrackerApp()
@@ -118,30 +120,54 @@ bool CMultiTrackerApp::Initialize()
 
 void CMultiTrackerApp::SaveCalibration( int stateIn, void *userDataIn )
 {
-	TColorData *calData = (TColorData*)userDataIn;
+	CMultiTrackerApp *calData = (CMultiTrackerApp*)userDataIn;
 
-	pthread_mutex_lock( &calData->threadMutex );
+	std::ofstream calibrationFile;
+
+	calibrationFile.open( "calibration1.json" );
+
+	pthread_mutex_lock( &calData->m_buttonMutex );
 
 	LOG( INFO ) << "Saving Calibration Data";
 
-	for( size_t i = 0; i < NUM_COLORS; ++i )
+	calibrationFile <<"{\n";
+
+	for( std::vector<TColorData>::iterator itr = calData->m_calibrationObjects.begin(); itr != calData->m_calibrationObjects.end(); ++itr )
 	{
-		calData->lowH 	= _colorCal.lowH;
-		calData->highH 	= _colorCal.highH;
+		calibrationFile << "\"" << itr->colorId << "\":{\n";
 
-		calData->lowS 	= _colorCal.lowS;
-		calData->highS 	= _colorCal.highS;
+		calibrationFile << "\"lowH\":" << itr->lowH << ",\n";
 
-		calData->lowV 	= _colorCal.lowV;
-		calData->highV	= _colorCal.highV;
+
+		calibrationFile << "\"lowS\":" << itr->lowS << ",\n";
+
+
+		calibrationFile << "\"lowV\":" << itr->lowV << ",\n";
+
+
+		calibrationFile << "\"highH\":" << itr->highH << ",\n";
+
+
+		calibrationFile << "\"highS\":" << itr->highS << ",\n";
+
+
+		calibrationFile << "\"highV\":" << itr->highV << "\n";
+
+		calibrationFile <<  "},";
 	}
 
-	pthread_mutex_unlock( &calData->threadMutex );
+	calibrationFile << "}";
+
+	calibrationFile.close();
+
+	pthread_mutex_unlock( &calData->m_buttonMutex );
 }
 
 void CMultiTrackerApp::ParseJsonFile( const std::string &fileIn )
 {
 	TColorData color;
+
+	rapidjson::Value calibrationParam;
 
 	std::ifstream calibrationFile( fileIn.c_str() );
 
@@ -172,27 +198,70 @@ void CMultiTrackerApp::ParseJsonFile( const std::string &fileIn )
 		throw std::invalid_argument( errorString );
 	}
 
-	const auto& detectorParamString = _calibrationDoc["blue"];
+	for(size_t i = 0; i < NUM_COLORS; ++i)
+	{
+		switch( i ){
+		case 0:
+		{
+			calibrationParam = _calibrationDoc["blue"];
 
-	std::string col = detectorParamString["color"].GetString();
+			color.colorId = "blue";
 
-	LOG( INFO ) << "Color: " << col;
+			break;
+		}
+		case 1:
+		{
+			calibrationParam = _calibrationDoc["orange"];
 
-//	for( size_t i = 0; i < NUM_COLORS; ++i)
-//	{
-//		color.colorId 	= _calibrationDoc[i].GetString();
-//		color.highH 	= atoi( fileIn[i]["highH"].GetString() );
-//
-//		color.highS 	= atoi( fileIn[i]["highS"].GetString() );
-//		color.highV 	= atoi( fileIn[i]["highV"].GetString() );
-//
-//		color.lowH 		= atoi( fileIn[i]["lowH"].GetString() );
-//		color.lowS	 	= atoi( fileIn[i]["lowS"].GetString() );
-//
-//		color.lowV		= atoi( fileIn[i]["lowV"].GetString() );
-//
-//		m_calibrationObjects.push_back( color );
-//	}
+			color.colorId = "orange";
+
+			break;
+		}
+		case 2:
+		{
+			calibrationParam = _calibrationDoc["purple"];
+
+			color.colorId = "purple";
+
+			break;
+		}
+		case 3:
+		{
+			calibrationParam = _calibrationDoc["yellow"];
+
+			color.colorId = "yellow";
+
+			break;
+		}
+		case 4:
+		{
+			calibrationParam = _calibrationDoc["green"];
+
+			color.colorId = "green";
+
+			break;
+		}
+		case 5:
+		{
+			calibrationParam = _calibrationDoc["red"];
+
+			color.colorId = "red";
+
+			break;
+		}
+		}
+
+		color.lowH = calibrationParam["lowH"].GetInt();
+		color.lowS = calibrationParam["lowS"].GetInt();
+		color.lowV = calibrationParam["lowV"].GetInt();
+
+		color.highH = calibrationParam["highH"].GetInt();
+		color.highS = calibrationParam["highS"].GetInt();
+		color.highV = calibrationParam["highV"].GetInt();
+
+		m_calibrationObjects.push_back( color );
+
+	}
 }
 
 void CMultiTrackerApp::CalibrateHSV( int stateIn, void *userDataIn )
