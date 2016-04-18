@@ -9,12 +9,12 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 	, m_track( false )
 	, _recurseDir( false )
 {
-	m_calibrationData.blue.colorId 	= "blue";
-	m_calibrationData.orange.colorId = "orange";
-	m_calibrationData.purple.colorId = "purple";
-	m_calibrationData.yellow.colorId = "yellow";
+	m_calibrationData.blue.colorId 		= "blue";
+	m_calibrationData.orange.colorId 	= "orange";
+	m_calibrationData.purple.colorId 	= "purple";
+	m_calibrationData.yellow.colorId 	= "yellow";
 	m_calibrationData.green.colorId 	= "green";
-	m_calibrationData.red.colorId 	= "red";
+	m_calibrationData.red.colorId 		= "red";
 
 	if( !strcmp( argv[1], "vid" ) )
 	{
@@ -29,8 +29,6 @@ CMultiTrackerApp::CMultiTrackerApp( char **argv )
 	{
 		_recurseDir = true;
 	}
-
-
 }
 
 CMultiTrackerApp::~CMultiTrackerApp()
@@ -70,22 +68,13 @@ bool CMultiTrackerApp::Initialize()
 	_colorCal.highV = 255;
 
 	m_calibrationData.blue 				= _colorCal;
-	m_calibrationData.blue.colorId 		= "blue";
-
 	m_calibrationData.green 				= _colorCal;
-	m_calibrationData.green.colorId 		= "green";
 
 	m_calibrationData.orange 			= _colorCal;
-	m_calibrationData.orange.colorId 	= "orange";
-
 	m_calibrationData.purple				= _colorCal;
-	m_calibrationData.purple.colorId 	= "purple";
 
 	m_calibrationData.red 				= _colorCal;
-	m_calibrationData.red.colorId 		= "red";
-
 	m_calibrationData.yellow				= _colorCal;
-	m_calibrationData.yellow.colorId 	= "yellow";
 
 	LOG( INFO ) << "Creating Windows, Trackbars, and Buttons";
 
@@ -130,57 +119,57 @@ void CMultiTrackerApp::LoadCalibration( int stateIn, void *userDataIn )
 	{
 		if( itr->colorId == "red" )
 		{
-			itr->highH = calData->m_calibrationData.red.highH;
-			itr->highS = calData->m_calibrationData.red.highS;
-			itr->highV = calData->m_calibrationData.red.highV;
-			itr->lowH = calData->m_calibrationData.red.lowH;
-			itr->lowS= calData->m_calibrationData.red.lowS;
-			itr->lowV = calData->m_calibrationData.red.lowV;
+			itr->highH 	= calData->m_calibrationData.red.highH;
+			itr->highS 	= calData->m_calibrationData.red.highS;
+			itr->highV 	= calData->m_calibrationData.red.highV;
+			itr->lowH 	= calData->m_calibrationData.red.lowH;
+			itr->lowS 	= calData->m_calibrationData.red.lowS;
+			itr->lowV 	= calData->m_calibrationData.red.lowV;
 		}
 		if( itr->colorId == "blue" )
 		{
-			itr->highH = calData->m_calibrationData.blue.highH;
-			itr->highS = calData->m_calibrationData.blue.highS;
-			itr->highV = calData->m_calibrationData.blue.highV;
-			itr->lowH = calData->m_calibrationData.blue.lowH;
-			itr->lowS= calData->m_calibrationData.blue.lowS;
-			itr->lowV = calData->m_calibrationData.blue.lowV;
+			itr->highH 	= calData->m_calibrationData.blue.highH;
+			itr->highS 	= calData->m_calibrationData.blue.highS;
+			itr->highV 	= calData->m_calibrationData.blue.highV;
+			itr->lowH 	= calData->m_calibrationData.blue.lowH;
+			itr->lowS	= calData->m_calibrationData.blue.lowS;
+			itr->lowV 	= calData->m_calibrationData.blue.lowV;
 		}
 		if( itr->colorId == "green" )
 		{
-			itr->highH = calData->m_calibrationData.green.highH;
-			itr->highS = calData->m_calibrationData.green.highS;
-			itr->highV = calData->m_calibrationData.green.highV;
-			itr->lowH = calData->m_calibrationData.green.lowH;
-			itr->lowS= calData->m_calibrationData.green.lowS;
-			itr->lowV = calData->m_calibrationData.green.lowV;
+			itr->highH 	= calData->m_calibrationData.green.highH;
+			itr->highS 	= calData->m_calibrationData.green.highS;
+			itr->highV 	= calData->m_calibrationData.green.highV;
+			itr->lowH 	= calData->m_calibrationData.green.lowH;
+			itr->lowS	= calData->m_calibrationData.green.lowS;
+			itr->lowV 	= calData->m_calibrationData.green.lowV;
 		}
 		if( itr->colorId == "yellow" )
 		{
-			itr->highH = calData->m_calibrationData.yellow.highH;
-			itr->highS = calData->m_calibrationData.yellow.highS;
-			itr->highV = calData->m_calibrationData.yellow.highV;
-			itr->lowH = calData->m_calibrationData.yellow.lowH;
-			itr->lowS= calData->m_calibrationData.yellow.lowS;
-			itr->lowV = calData->m_calibrationData.yellow.lowV;
+			itr->highH 	= calData->m_calibrationData.yellow.highH;
+			itr->highS 	= calData->m_calibrationData.yellow.highS;
+			itr->highV 	= calData->m_calibrationData.yellow.highV;
+			itr->lowH 	= calData->m_calibrationData.yellow.lowH;
+			itr->lowS	= calData->m_calibrationData.yellow.lowS;
+			itr->lowV 	= calData->m_calibrationData.yellow.lowV;
 		}
 		if( itr->colorId == "purple" )
 		{
-			itr->highH = calData->m_calibrationData.purple.highH;
-			itr->highS = calData->m_calibrationData.purple.highS;
-			itr->highV = calData->m_calibrationData.purple.highV;
-			itr->lowH = calData->m_calibrationData.purple.lowH;
-			itr->lowS= calData->m_calibrationData.purple.lowS;
-			itr->lowV = calData->m_calibrationData.purple.lowV;
+			itr->highH 	= calData->m_calibrationData.purple.highH;
+			itr->highS 	= calData->m_calibrationData.purple.highS;
+			itr->highV 	= calData->m_calibrationData.purple.highV;
+			itr->lowH 	= calData->m_calibrationData.purple.lowH;
+			itr->lowS	= calData->m_calibrationData.purple.lowS;
+			itr->lowV 	= calData->m_calibrationData.purple.lowV;
 		}
 		if( itr->colorId == "orange" )
 		{
-			itr->highH = calData->m_calibrationData.orange.highH;
-			itr->highS = calData->m_calibrationData.orange.highS;
-			itr->highV = calData->m_calibrationData.orange.highV;
-			itr->lowH = calData->m_calibrationData.orange.lowH;
-			itr->lowS= calData->m_calibrationData.orange.lowS;
-			itr->lowV = calData->m_calibrationData.orange.lowV;
+			itr->highH 	= calData->m_calibrationData.orange.highH;
+			itr->highS 	= calData->m_calibrationData.orange.highS;
+			itr->highV 	= calData->m_calibrationData.orange.highV;
+			itr->lowH 	= calData->m_calibrationData.orange.lowH;
+			itr->lowS	= calData->m_calibrationData.orange.lowS;
+			itr->lowV 	= calData->m_calibrationData.orange.lowV;
 		}
 	}
 
